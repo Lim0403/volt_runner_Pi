@@ -1,0 +1,18 @@
+teleop_twist_joy_node:
+  ros__parameters:
+    axis_linear:
+      x: 1    # 전/후진: 왼쪽 스틱 상/하 (axes[1])
+      y: 0    # 좌/우:   왼쪽 스틱 좌/우 (axes[0])
+    scale_linear:
+      x: 0.7
+      y: 0.7      # 방향 맞추기 (오른쪽이 -1, 왼쪽이 +1이므로 - 붙임)
+    scale_linear_turbo:
+      x: 1.5
+      y: -1.5
+    axis_angular:
+      yaw: 3       # 회전: 오른쪽 스틱 좌/우 (axes[3])
+    scale_angular:
+      yaw: 0.5
+    enable_button: 5        # R2 (버튼 번호 맞게)
+    enable_turbo_button: 3  # 필요시
+
