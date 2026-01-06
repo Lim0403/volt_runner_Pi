@@ -1,0 +1,4 @@
+numpy
+pyserial
+smbus2
+transforms3d

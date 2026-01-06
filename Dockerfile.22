@@ -1,0 +1,35 @@
+FROM ros:humble-ros-base
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 1. 필수 시스템 패키지 설치
+# (중요: ros-humble-rmw-cyclonedds-cpp 추가됨! ⭐)
+RUN apt-get update && apt-get install -y \
+    python3-pip python3-colcon-common-extensions \
+    build-essential cmake libgpiod-dev i2c-tools usbutils git \
+    ros-humble-joy ros-humble-teleop-twist-joy \
+    ros-humble-tf-transformations \
+    ros-humble-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. YDLidar SDK 설치 (기존과 동일)
+WORKDIR /root
+RUN git clone https://github.com/YDLIDAR/YDLidar-SDK.git && \
+    cd YDLidar-SDK && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf YDLidar-SDK
+
+# 3. 워크스페이스 설정
+WORKDIR /root/ros2_ws
+COPY requirements.txt .
+
+# 4. 파이썬 라이브러리 설치
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# 5. 환경 설정
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+CMD ["/bin/bash"]

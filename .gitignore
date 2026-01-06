@@ -1,3 +1,9 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# ROS / build
 build/
 install/
 log/

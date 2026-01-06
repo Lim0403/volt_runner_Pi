@@ -35,101 +35,79 @@ class MecanumIKNode(Node):
         self.lx = 0.10
         self.ly = 0.088
 
+        # === 🔥 방향별 속도 보정 (Gain Tuning) ===
+        # 1.0이 기본값.
+        # - 전진(X): 너무 빠르니까 줄임 (0.3 ~ 0.4 추천)
+        # - 횡이동(Y): 마찰이 심해서 힘이 많이 필요함 (1.0 ~ 1.5 추천)
+        # - 회전(Z): 너무 빠르면 어지러우니까 적당히 줄임 (0.3 ~ 0.5 추천)
+        
+        self.gain_x = 0.32   # 전진 힘조절 (아까 30cm 맞춘 값)
+        self.gain_y = 0.87    # 횡이동 힘조절 (옆으로 갈 땐 힘을 3배 이상 더 줌!)
+        self.gain_z = 0.89    # 회전 힘조절
+
         # === 최소 클램핑 ===
         self.min_linear_x = 0.3
         self.min_angular_z = 0.3
         self.enable_clamp = True
 
-        # === 마지막 명령(Last one wins) 상태 저장 ===
+        # === 마지막 명령 상태 저장 ===
         self.last_cmd: Twist = None
         self.last_source: str = None
 
-        # === 구독자: 3개의 속도 명령 모두 받기 ===
         self.sub_manual = self.create_subscription(
-            Twist,
-            '/cmd_vel',
-            functools.partial(self.cmd_vel_callback, source="manual"),
-            10
-        )
-
+            Twist, '/cmd_vel', functools.partial(self.cmd_vel_callback, source="manual"), 10)
         self.sub_nav2 = self.create_subscription(
-            Twist,
-            '/cmd_vel_nav2',
-            functools.partial(self.cmd_vel_callback, source="nav2"),
-            10
-        )
-
+            Twist, '/cmd_vel_nav2', functools.partial(self.cmd_vel_callback, source="nav2"), 10)
         self.sub_rl = self.create_subscription(
-            Twist,
-            '/cmd_rl',
-            functools.partial(self.cmd_vel_callback, source="rl"),
-            10
-        )
+            Twist, '/cmd_rl', functools.partial(self.cmd_vel_callback, source="rl"), 10)
 
-        # === Teensy로 보낼 휠 RPM ===
-        self.publisher = self.create_publisher(
-            Float32MultiArray,
-            '/wheel_target_rpm',
-            10
-        )
+        self.publisher = self.create_publisher(Float32MultiArray, '/wheel_target_rpm', 10)
 
         self.get_logger().info(
-            "Mecanum IK Node Started | "
-            f"r={self.r}, lx={self.lx}, ly={self.ly}, "
-            f"clamp={self.enable_clamp}"
+            f"Mecanum IK Node Started | Gains -> X:{self.gain_x}, Y:{self.gain_y}, Z:{self.gain_z}"
         )
 
-    # ============================================================
-    # 🔥 공통 콜백: "어떤 cmd_vel이든 들어오면 적용"
-    # ============================================================
     def cmd_vel_callback(self, msg: Twist, source: str):
         self.last_cmd = msg
         self.last_source = source
-
-        # 가장 최신으로 들어온 명령을 사용 → last one wins
         self.apply_cmd(msg, source)
 
-    # ============================================================
-    # 🔥 cmd_vel → inverse kinematics → rpm publish
-    # ============================================================
     def apply_cmd(self, msg: Twist, source: str):
         raw_vx = msg.linear.x
         raw_vy = msg.linear.y
         raw_omega = msg.angular.z
 
-        # === 부호 보정 ===
-        vx = raw_vx
-        vy = -raw_vy
-        omega = -raw_omega
+        # === 1. 최소 입력 처리 (Deadzone) ===
+        # 입력값이 너무 작으면 0으로 처리
+        vx = raw_vx if abs(raw_vx) > 0.01 else 0.0
+        vy = raw_vy if abs(raw_vy) > 0.01 else 0.0
+        omega = -raw_omega if abs(raw_omega) > 0.01 else 0.0 # 부호 반전
 
-        # === 최소 속도 클램핑 ===
+        # === 2. 최소 구동 속도 클램핑 (Clamp) ===
         if self.enable_clamp:
-
-            # 전진/후진
             if abs(vx) > 0 and abs(vx) < self.min_linear_x:
                 vx = math.copysign(self.min_linear_x, vx)
-
-            # 회전
             if abs(omega) > 0 and abs(omega) < self.min_angular_z:
                 omega = math.copysign(self.min_angular_z, omega)
 
-        # === 역기구학 ===
-        w_list = inverse_kinematics(vx, vy, omega, self.r, self.lx, self.ly)
+        # === 3. 🔥 핵심: 방향별 게인 적용 ===
+        # IK 공식에 넣기 전에, 로봇 특성에 맞춰 속도 명령을 튜닝합니다.
+        tuned_vx = vx * self.gain_x
+        tuned_vy = vy * self.gain_y
+        tuned_omega = omega * self.gain_z
 
-        # === rad/s → rpm ===
+        # === 4. 역기구학 계산 ===
+        w_list = inverse_kinematics(tuned_vx, tuned_vy, tuned_omega, self.r, self.lx, self.ly)
+
+        # === 5. rad/s → rpm 변환 ===
         rpm_list = [w * 60.0 / (2.0 * math.pi) for w in w_list]
 
         msg_out = Float32MultiArray()
         msg_out.data = rpm_list
         self.publisher.publish(msg_out)
 
-        # === 디버그 출력 ===
-        self.get_logger().info(
-            f"[{source}] vx={raw_vx:.3f}, vy={raw_vy:.3f}, w={raw_omega:.3f} | "
-            f"after fix: vx={vx:.3f}, vy={vy:.3f}, w={omega:.3f} | "
-            f"rpm={ [round(r,1) for r in rpm_list] }"
-        )
-
+        # 디버깅 로그 (가끔 확인용)
+        # self.get_logger().info(f"In: {raw_vx:.2f}, {raw_vy:.2f} | OutRPM: {[int(r) for r in rpm_list]}")
 
 def main(args=None):
     rclpy.init(args=args)
@@ -140,7 +118,6 @@ def main(args=None):
         pass
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
