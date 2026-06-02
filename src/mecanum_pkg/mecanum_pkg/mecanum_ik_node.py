@@ -42,8 +42,8 @@ class MecanumIKNode(Node):
         # - 회전(Z): 너무 빠르면 어지러우니까 적당히 줄임 (0.3 ~ 0.5 추천)
         
         self.gain_x = 0.32   # 전진 힘조절 (아까 30cm 맞춘 값)
-        self.gain_y = 0.87    # 횡이동 힘조절 (옆으로 갈 땐 힘을 3배 이상 더 줌!)
-        self.gain_z = 0.89    # 회전 힘조절
+        self.gain_y = 0.35    # 횡이동 힘조절 (옆으로 갈 땐 힘을 3배 이상 더 줌!)
+        self.gain_z = 0.95    # 회전 힘조절
 
         # === 최소 클램핑 ===
         self.min_linear_x = 0.3
