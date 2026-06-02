@@ -42,7 +42,7 @@ class OdomPublisher(Node):
         dt = (current_time - self.last_time).nanoseconds / 1e9
         self.last_time = current_time
 
-        rpm = msg.data  # [FL, FR, RL, RR] 순서로 들어온다고 가정
+        rpm = msg.data  # rpm_receiver_node.py에서 [FL, FR, RL, RR] 순서로 정리되어 들어옴
 
         if len(rpm) < 4:
             return
@@ -52,8 +52,8 @@ class OdomPublisher(Node):
         # =========================================================
         rpm_fl = rpm[0]
         rpm_fr = rpm[1]
-        rpm_rl = rpm[3]
-        rpm_rr = rpm[2]
+        rpm_rl = rpm[2]
+        rpm_rr = rpm[3]
 
         # RPM -> m/s 변환
         v_fl = (rpm_fl * 2 * math.pi * self.wheel_radius) / 60.0
