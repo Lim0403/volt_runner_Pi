@@ -48,12 +48,26 @@ class OdomPublisher(Node):
             return
 
         # =========================================================
-        # [수정 전] 일반적인 매핑 (FL, FR, RL, RR 순서 그대로)
+        # 실제 /wheel_feedback_rpm raw 순서: [RR, RL, FR, FL]
+        # 실험 확정:
+        #   [40, 0, 0, 0] -> RR
+        #   [0, 40, 0, 0] -> RL
+        #   [0, 0, 40, 0] -> FR
+        #   [0, 0, 0, 40] -> FL
+        #
+        # 주의:
+        #   encoder feedback raw 부호와 FK 물리 부호가 일부 다름.
+        #   y 이동 실험에서 raw feedback은 [+, +, -, -]로 들어왔지만,
+        #   실제 FK용 물리 바퀴 속도는 [-, +, +, -]가 되어야 함.
+        #
+        # 따라서 FK 계산 전 부호 보정:
+        #   RR, FR 부호 반전
+        #   RL, FL 유지
         # =========================================================
-        rpm_fl = rpm[0]
-        rpm_fr = rpm[1]
-        rpm_rl = rpm[2]
-        rpm_rr = rpm[3]
+        rpm_rr = -rpm[0]
+        rpm_rl =  rpm[1]
+        rpm_fr = -rpm[2]
+        rpm_fl =  rpm[3]
 
         # RPM -> m/s 변환
         v_fl = (rpm_fl * 2 * math.pi * self.wheel_radius) / 60.0
