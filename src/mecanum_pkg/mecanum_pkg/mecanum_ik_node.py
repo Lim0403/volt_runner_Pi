@@ -47,6 +47,7 @@ class MecanumIKNode(Node):
 
         # === 최소 클램핑 ===
         self.min_linear_x = 0.3
+        self.min_linear_y = 0.3
         self.min_angular_z = 0.3
         self.enable_clamp = True
 
@@ -87,6 +88,8 @@ class MecanumIKNode(Node):
         if self.enable_clamp:
             if abs(vx) > 0 and abs(vx) < self.min_linear_x:
                 vx = math.copysign(self.min_linear_x, vx)
+            if abs(vy) > 0 and abs(vy) < self.min_linear_y:
+                vy = math.copysign(self.min_linear_y, vy)
             if abs(omega) > 0 and abs(omega) < self.min_angular_z:
                 omega = math.copysign(self.min_angular_z, omega)
 
