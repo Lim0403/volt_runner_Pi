@@ -11,17 +11,19 @@ find_package(rclpy REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
-find_package(rosidl_default_generators REQUIRED)  # <--- 이거 필수
+find_package(rosidl_default_generators REQUIRED)  # msg 생성에 필요
 
-# 1. 메시지 생성 설정 (이게 있어야 msg 파일을 인식함)
+# 1. 메시지 생성 설정 (msg 파일 등록)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PerfCommand.msg"
-  DEPENDENCIES geometry_msgs builtin_interfaces
+  "msg/Perf2Command.msg"
+  DEPENDENCIES geometry_msgs builtin_interfaces std_msgs
 )
 
-# 2. 파이썬 스크립트 설치 (이게 있어야 ros2 run으로 실행 가능) <--- 범인 검거!
+# 2. 파이썬 스크립트 설치 (ros2 run 가능)
 install(PROGRAMS
   scripts/recorder_node.py
+  scripts/recorder2_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
